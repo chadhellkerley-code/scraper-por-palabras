@@ -155,17 +155,29 @@ async function searchAndExtract(keyword, delayMs) {
         !extracted.some(item => item.username === username)) {
       
       // Obtener el nombre completo opcional (suele estar en un div hermano o hijo)
-      const parentRow = link.closest('div');
       let fullName = "";
-      if (parentRow) {
-        const spanElements = parentRow.querySelectorAll('span');
+      let currentElement = link.parentElement;
+      let levels = 0;
+
+      while (currentElement && levels < 6) {
+        const spanElements = currentElement.querySelectorAll('span');
         for (const span of spanElements) {
           const txt = span.textContent.trim();
-          if (txt && txt !== username && txt.length > 0 && !txt.includes("Seguidores") && !txt.includes("Seguir")) {
+          if (txt &&
+              txt !== username &&
+              txt.length > 0 &&
+              !txt.includes("Seguidores") &&
+              !txt.includes("Seguir") &&
+              !txt.includes("Follow") &&
+              !txt.includes("Eliminar") &&
+              !txt.includes("Remove")) {
             fullName = txt;
             break;
           }
         }
+        if (fullName) break;
+        currentElement = currentElement.parentElement;
+        levels++;
       }
 
       const finalFullName = fullName || username;
