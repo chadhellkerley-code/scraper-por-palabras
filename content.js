@@ -154,11 +154,14 @@ async function searchAndExtract(keyword, delayMs) {
         !username.includes("?") &&
         !extracted.some(item => item.username === username)) {
       
-      // Obtener el nombre completo opcional (suele estar en un div hermano o hijo)
-      const parentRow = link.closest('div');
+      // Obtener el nombre completo opcional subiendo en el DOM (suele estar en un div hermano o padre)
+      let currentParent = link.parentElement;
       let fullName = "";
-      if (parentRow) {
-        const spanElements = parentRow.querySelectorAll('span');
+      let maxLevels = 5; // Evitar subir demasiado en el DOM
+      let levels = 0;
+
+      while (currentParent && levels < maxLevels) {
+        const spanElements = currentParent.querySelectorAll('span');
         for (const span of spanElements) {
           const txt = span.textContent.trim();
           if (txt && txt !== username && txt.length > 0 && !txt.includes("Seguidores") && !txt.includes("Seguir")) {
@@ -166,6 +169,9 @@ async function searchAndExtract(keyword, delayMs) {
             break;
           }
         }
+        if (fullName) break;
+        currentParent = currentParent.parentElement;
+        levels++;
       }
 
       const finalFullName = fullName || username;
