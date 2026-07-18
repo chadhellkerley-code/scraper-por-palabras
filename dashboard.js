@@ -21,8 +21,6 @@ const resultsPanel = document.getElementById('results-panel');
 
 const inputUsernames = document.getElementById('usernames');
 const inputKeywords = document.getElementById('keywords');
-const inputMinDelay = document.getElementById('min-delay');
-const inputMaxDelay = document.getElementById('max-delay');
 
 const btnStart = document.getElementById('btn-start');
 const btnCancel = document.getElementById('btn-cancel');
@@ -50,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const parsed = JSON.parse(savedData);
       inputUsernames.value = parsed.usernames || "";
       inputKeywords.value = parsed.keywords || "";
-      inputMinDelay.value = parsed.minDelay || 3;
-      inputMaxDelay.value = parsed.maxDelay || 7;
       if (parsed.targetPhase) {
         const radio = document.querySelector(`input[name="extraction-target"][value="${parsed.targetPhase}"]`);
         if (radio) radio.checked = true;
@@ -94,18 +90,14 @@ async function startProcess() {
 
   const usernames = rawUsernames.split('\n').map(u => u.trim().replace("@", "")).filter(u => u.length > 0);
   const keywords = rawKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
-  const minDelay = parseInt(inputMinDelay.value) || 3;
-  const maxDelay = parseInt(inputMaxDelay.value) || 7;
   const targetPhase = document.querySelector('input[name="extraction-target"]:checked').value;
 
-  activeConfig = { usernames, keywords, minDelay, maxDelay, targetPhase };
+  activeConfig = { usernames, keywords, targetPhase };
   
   // Guardar en localStorage para conveniencia
   localStorage.setItem('instalead_saved_data', JSON.stringify({
     usernames: rawUsernames,
     keywords: rawKeywords,
-    minDelay,
-    maxDelay,
     targetPhase
   }));
 
@@ -121,7 +113,6 @@ async function startProcess() {
   addLog("Iniciando extractor de leads en Instagram...", "step");
   addLog(`Targets cargados: ${usernames.length} cuentas`, "info");
   addLog(`Palabras clave: ${keywords.join(', ')}`, "info");
-  addLog(`Delays: entre ${minDelay}s y ${maxDelay}s`, "info");
 
   try {
     await runAutomation();
@@ -144,7 +135,7 @@ function cancelProcess() {
 
 // Lógica principal de automatización
 async function runAutomation() {
-  const { usernames, keywords, minDelay, maxDelay, targetPhase } = activeConfig;
+  const { usernames, keywords, targetPhase } = activeConfig;
   let duplicatedCount = 0;
 
   let phases = [];
@@ -209,14 +200,9 @@ async function runAutomation() {
         currentKeywordSpan.textContent = keyword;
         addLog(`Buscando palabra clave: "${keyword}"...`, "info");
 
-        // Generar delay aleatorio en el rango indicado por el usuario
-        const delaySeconds = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-        addLog(`Delay de seguridad: esperando ${delaySeconds} segundos...`, "info");
-
         const response = await chrome.tabs.sendMessage(currentTabId, { 
           action: "search_and_extract", 
-          keyword, 
-          delayMs: delaySeconds * 1000 
+          keyword
         });
 
         if (response && response.success && response.leads) {
@@ -252,8 +238,10 @@ async function runAutomation() {
         currentStep++;
         updateProgress(currentStep, totalSteps);
         
-        // Pequeña pausa entre palabras clave
-        await wait(1500);
+        // Delay aleatorio entre 1 a 3 segundos en el backend entre keywords
+        const delaySeconds = Math.floor(Math.random() * 3) + 1;
+        addLog(`Delay de seguridad: esperando ${delaySeconds} segundos...`, "info");
+        await wait(delaySeconds * 1000);
       }
 
       // Cerrar el modal para limpiar
