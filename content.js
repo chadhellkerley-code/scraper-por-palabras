@@ -168,10 +168,14 @@ async function searchAndExtract(keyword, delayMs) {
         }
       }
 
-      extracted.push({
-        username: username,
-        fullName: fullName || username // Si no hay nombre, usa el username
-      });
+      const finalFullName = fullName || username;
+      const lowerKeyword = keyword.toLowerCase();
+      if (username.toLowerCase().includes(lowerKeyword) || finalFullName.toLowerCase().includes(lowerKeyword)) {
+        extracted.push({
+          username: username,
+          fullName: finalFullName
+        });
+      }
     }
   });
 
