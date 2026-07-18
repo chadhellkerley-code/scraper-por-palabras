@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>InstaLead Extractor - Panel de Control</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>InstaLead Extractor 🎯</h1>
+      <p class="subtitle">Extracción inteligente de seguidores y seguidos filtrados por palabras clave</p>
+    </header>
+
+    <div class="main-layout">
+      <!-- Panel de Control / Inputs -->
+      <div class="panel card" id="config-panel">
+        <h2>Configuración</h2>
+        
+        <div class="input-group">
+          <label for="usernames">Usernames de Instagram (uno por línea):</label>
+          <textarea id="usernames" placeholder="elonmusk
+leomessi
+markzuckerberg" rows="4"></textarea>
+        </div>
+
+        <div class="input-group">
+          <label for="keywords">Palabras Clave (separadas por comas):</label>
+          <input type="text" id="keywords" placeholder="fitness, marketing, real estate, coach">
+        </div>
+
+        <div class="delay-row">
+          <div class="input-group">
+            <label for="min-delay">Delay Mínimo (segundos):</label>
+            <input type="number" id="min-delay" value="3" min="1">
+          </div>
+          <div class="input-group">
+            <label for="max-delay">Delay Máximo (segundos):</label>
+            <input type="number" id="max-delay" value="7" min="1">
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn btn-primary">Comenzar Extracción 🚀</button>
+      </div>
+
+      <!-- Panel de Ejecución / Progreso -->
+      <div class="panel card hidden" id="running-panel">
+        <div class="running-header">
+          <h2>Extrayendo Leads...</h2>
+          <span class="badge" id="status-badge">EJECUTANDO</span>
+        </div>
+
+        <div class="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="stat-leads">0</div>
+            <div class="stat-label">Leads Únicos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num text-warning" id="stat-duplicates">0</div>
+            <div class="stat-label">Duplicados Omitidos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" id="stat-target">N/A</div>
+            <div class="stat-label">Target Actual</div>
+          </div>
+        </div>
+
+        <div class="current-step-info">
+          <p><strong>Keyword Actual:</strong> <span id="current-keyword">-</span></p>
+          <p><strong>Fase:</strong> <span id="current-phase">-</span></p>
+        </div>
+
+        <div class="log-container">
+          <div class="log-title">Registro de Actividad</div>
+          <div class="logs" id="logs"></div>
+        </div>
+
+        <div class="action-buttons-running">
+          <button id="btn-cancel" class="btn btn-secondary">Detener / Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Panel de Resultados -->
+      <div class="panel card hidden" id="results-panel">
+        <div class="results-header">
+          <h2>🎉 Extracción Completada</h2>
+          <button id="btn-close-results" class="close-btn">&times;</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-num" id="res-total">0</div>
+            <div class="stat-label">Leads Totales</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num text-warning" id="res-duplicates">0</div>
+            <div class="stat-label font-medium">Repetidos Ignorados</div>
+          </div>
+        </div>
+
+        <div class="lead-results-preview">
+          <h3>Muestra de Resultados (Primeros 100)</h3>
+          <div class="table-container">
+            <table id="leads-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Palabra Clave</th>
+                  <th>Origen</th>
+                  <th>Target</th>
+                </tr>
+              </thead>
+              <tbody id="leads-table-body">
+                <!-- Se poblará por JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button id="btn-download" class="btn btn-primary">Descargar CSV 📥</button>
+          <button id="btn-reset" class="btn btn-secondary">Volver al Inicio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
