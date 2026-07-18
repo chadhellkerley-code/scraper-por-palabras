@@ -6,7 +6,8 @@ let activeConfig = {
   usernames: [],
   keywords: [],
   minDelay: 3,
-  maxDelay: 7
+  maxDelay: 7,
+  targetPhase: 'both' // followers, following, both
 };
 
 let extractedLeads = []; // Array de { id, username, fullName, keyword, source, targetProfile, extractedAt, profileUrl }
@@ -51,6 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
       inputKeywords.value = parsed.keywords || "";
       inputMinDelay.value = parsed.minDelay || 3;
       inputMaxDelay.value = parsed.maxDelay || 7;
+      if (parsed.targetPhase) {
+        const radio = document.querySelector(`input[name="extraction-target"][value="${parsed.targetPhase}"]`);
+        if (radio) radio.checked = true;
+      }
     } catch(e) {}
   }
 });
@@ -91,15 +96,17 @@ async function startProcess() {
   const keywords = rawKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0);
   const minDelay = parseInt(inputMinDelay.value) || 3;
   const maxDelay = parseInt(inputMaxDelay.value) || 7;
+  const targetPhase = document.querySelector('input[name="extraction-target"]:checked').value;
 
-  activeConfig = { usernames, keywords, minDelay, maxDelay };
+  activeConfig = { usernames, keywords, minDelay, maxDelay, targetPhase };
   
   // Guardar en localStorage para conveniencia
   localStorage.setItem('instalead_saved_data', JSON.stringify({
     usernames: rawUsernames,
     keywords: rawKeywords,
     minDelay,
-    maxDelay
+    maxDelay,
+    targetPhase
   }));
 
   // Inicializar estado
@@ -137,9 +144,19 @@ function cancelProcess() {
 
 // Lógica principal de automatización
 async function runAutomation() {
-  const { usernames, keywords, minDelay, maxDelay } = activeConfig;
+  const { usernames, keywords, minDelay, maxDelay, targetPhase } = activeConfig;
   let duplicatedCount = 0;
-  const totalSteps = usernames.length * 2 * keywords.length; // 2 fases (seguidores/seguidos) por usuario
+
+  let phases = [];
+  if (targetPhase === 'followers') {
+    phases = ['followers'];
+  } else if (targetPhase === 'following') {
+    phases = ['following'];
+  } else {
+    phases = ['followers', 'following'];
+  }
+
+  const totalSteps = usernames.length * phases.length * keywords.length;
   let currentStep = 0;
 
   for (let u = 0; u < usernames.length; u++) {
@@ -166,7 +183,6 @@ async function runAutomation() {
       await injectContentScript(currentTabId);
     }
 
-    const phases = ['followers', 'following'];
     for (const phase of phases) {
       if (!isRunning) break;
       const phaseLabel = phase === 'followers' ? 'Seguidores' : 'Seguidos';
