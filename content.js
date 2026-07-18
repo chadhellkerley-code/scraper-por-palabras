@@ -139,57 +139,83 @@ async function searchAndExtract(keyword, delayMs) {
   // Extraer los perfiles de la lista
   // Los usernames suelen ser enlaces con un rol de link que contienen texto sin caracteres especiales de Instagram.
   // Buscamos etiquetas <a> que estén dentro del diálogo y no tengan clases de botones
-  const links = Array.from(dialog.querySelectorAll('a[role="link"]'));
-  
   const extracted = [];
-  
-  links.forEach(link => {
-    const href = link.getAttribute('href');
-    const username = href?.replace(/\//g, ""); // Extrae "username" de "/username/"
-    
-    if (username && 
-        username !== "explore" && 
-        username !== "direct" && 
-        username !== "emails" &&
-        !username.includes("?") &&
-        !extracted.some(item => item.username === username)) {
-      
-      // Obtener el nombre completo opcional (suele estar en un div hermano o hijo)
-      let fullName = "";
-      let currentElement = link.parentElement;
-      let levels = 0;
+  let previousScrollHeight = 0;
+  let unchangedScrollCount = 0;
+  const MAX_UNCHANGED_SCROLLS = 3;
+  const MAX_TOTAL_SCROLLS = 30; // Evitar loops infinitos
+  let totalScrolls = 0;
 
-      while (currentElement && levels < 6) {
-        const spanElements = currentElement.querySelectorAll('span');
-        for (const span of spanElements) {
-          const txt = span.textContent.trim();
-          if (txt &&
-              txt !== username &&
-              txt.length > 0 &&
-              !txt.includes("Seguidores") &&
-              !txt.includes("Seguir") &&
-              !txt.includes("Follow") &&
-              !txt.includes("Eliminar") &&
-              !txt.includes("Remove")) {
-            fullName = txt;
+  while (unchangedScrollCount < MAX_UNCHANGED_SCROLLS && totalScrolls < MAX_TOTAL_SCROLLS) {
+    const links = Array.from(dialog.querySelectorAll('a[role="link"]'));
+    
+    links.forEach(link => {
+      const href = link.getAttribute('href');
+      const username = href?.replace(/\//g, ""); // Extrae "username" de "/username/"
+      
+      if (username &&
+          username !== "explore" &&
+          username !== "direct" &&
+          username !== "emails" &&
+          !username.includes("?") &&
+          !extracted.some(item => item.username === username)) {
+
+        // Obtener el nombre completo opcional (suele estar en un div hermano o hijo)
+        let fullName = "";
+        let currentElement = link.parentElement;
+        let levels = 0;
+
+        while (currentElement && levels < 6) {
+          const spanElements = currentElement.querySelectorAll('span');
+          const validTexts = [];
+          for (const span of spanElements) {
+            const txt = span.textContent.trim();
+            if (txt &&
+                txt !== username &&
+                txt.length > 0 &&
+                !txt.includes("Seguidores") &&
+                !txt.includes("Seguir") &&
+                !txt.includes("Follow") &&
+                !txt.includes("Eliminar") &&
+                !txt.includes("Remove") &&
+                !validTexts.includes(txt)) {
+              validTexts.push(txt);
+            }
+          }
+          if (validTexts.length > 0) {
+            fullName = validTexts.join(" ");
             break;
           }
+          currentElement = currentElement.parentElement;
+          levels++;
         }
-        if (fullName) break;
-        currentElement = currentElement.parentElement;
-        levels++;
-      }
 
-      const finalFullName = fullName || username;
-      const lowerKeyword = keyword.toLowerCase();
-      if (username.toLowerCase().includes(lowerKeyword) || finalFullName.toLowerCase().includes(lowerKeyword)) {
-        extracted.push({
-          username: username,
-          fullName: finalFullName
-        });
+        const finalFullName = fullName || username;
+        const lowerKeyword = keyword.toLowerCase();
+        if (username.toLowerCase().includes(lowerKeyword) || finalFullName.toLowerCase().includes(lowerKeyword)) {
+          extracted.push({
+            username: username,
+            fullName: finalFullName
+          });
+        }
       }
+    });
+
+    if (listContainer) {
+      previousScrollHeight = listContainer.scrollHeight;
+      listContainer.scrollTop = listContainer.scrollHeight;
+      await wait(800); // Esperar a que carguen nuevos resultados
+
+      if (listContainer.scrollHeight === previousScrollHeight) {
+        unchangedScrollCount++;
+      } else {
+        unchangedScrollCount = 0; // Resetear si hubo nuevo contenido
+      }
+      totalScrolls++;
+    } else {
+      break; // Si no hay contenedor de scroll, salimos después del primer escaneo
     }
-  });
+  }
 
   return extracted;
 }
