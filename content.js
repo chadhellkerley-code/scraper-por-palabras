@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "search_and_extract") {
-    searchAndExtract(request.keyword, request.delayMs)
+    searchAndExtract(request.keyword)
       .then(leads => sendResponse({ success: true, leads }))
       .catch(err => sendResponse({ success: false, error: err.message }));
     return true;
@@ -87,7 +87,7 @@ async function closeModal() {
 }
 
 // Función para buscar palabra clave y extraer usuarios
-async function searchAndExtract(keyword, delayMs) {
+async function searchAndExtract(keyword) {
   const dialog = document.querySelector('div[role="dialog"]');
   if (!dialog) {
     throw new Error("No se encuentra abierto el modal de seguidores/seguidos.");
@@ -120,9 +120,9 @@ async function searchAndExtract(keyword, delayMs) {
     await wait(80 + Math.random() * 80);
   }
 
-  // Esperar a que Instagram recargue los resultados (Delay configurable por usuario)
-  console.log(`Esperando delay de ${delayMs}ms para los resultados...`);
-  await wait(delayMs);
+  // Esperar un tiempo fijo para que Instagram recargue los resultados naturales
+  console.log(`Esperando resultados...`);
+  await wait(2000);
 
   // Intentar hacer un scroll pequeño dentro de la lista para gatillar renderizado
   const listContainer = dialog.querySelector('div[style*="overflow-y"]') || 
@@ -191,13 +191,11 @@ async function searchAndExtract(keyword, delayMs) {
         }
 
         const finalFullName = fullName || username;
-        const lowerKeyword = keyword.toLowerCase();
-        if (username.toLowerCase().includes(lowerKeyword) || finalFullName.toLowerCase().includes(lowerKeyword)) {
-          extracted.push({
-            username: username,
-            fullName: finalFullName
-          });
-        }
+        // Se extraen todos los resultados sin importar si coinciden con la palabra clave o no
+        extracted.push({
+          username: username,
+          fullName: finalFullName
+        });
       }
     });
 
