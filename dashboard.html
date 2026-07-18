@@ -40,6 +40,21 @@ markzuckerberg" rows="4"></textarea>
           </div>
         </div>
 
+        <div class="input-group">
+          <label>¿Qué deseas revisar?</label>
+          <div class="radio-group" style="display: flex; gap: 16px; margin-top: 8px;">
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="radio" name="extraction-target" value="followers"> Seguidores
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="radio" name="extraction-target" value="following"> Seguidos
+            </label>
+            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="radio" name="extraction-target" value="both" checked> Ambos
+            </label>
+          </div>
+        </div>
+
         <button id="btn-start" class="btn btn-primary">Comenzar Extracción 🚀</button>
       </div>
 
