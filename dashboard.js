@@ -162,17 +162,10 @@ async function runAutomation() {
     
     currentTabId = await createTab(profileUrl);
     
-    // Esperar a que la página cargue por completo (ej. 4 segundos)
+    // Esperar a que la página cargue por completo
     addLog("Esperando carga de página...", "info");
-    await wait(4500);
-
-    // Asegurarse de inyectar o conectar con el content script
-    try {
-      await pingContentScript(currentTabId);
-    } catch (e) {
-      addLog("Inyectando content script de forma manual...", "warning");
-      await injectContentScript(currentTabId);
-    }
+    await waitForTabComplete(currentTabId);
+    await wait(1500); // Pequeño margen adicional después del complete
 
     for (const phase of phases) {
       if (!isRunning) break;
@@ -182,7 +175,13 @@ async function runAutomation() {
 
       // Abrir el modal de seguidores o seguidos
       addLog(`Abriendo modal de ${phaseLabel}...`, "info");
-      const modalOpened = await chrome.tabs.sendMessage(currentTabId, { action: "open_modal", phase });
+
+      let modalOpened;
+      try {
+        modalOpened = await safeSendMessage(currentTabId, { action: "open_modal", phase });
+      } catch (err) {
+        addLog(`Error abriendo modal: ${err.message}`, "error");
+      }
       
       if (!modalOpened || !modalOpened.success) {
         addLog(`No se pudo abrir el modal de ${phaseLabel}. ¿Está logueado en Instagram? Intentaremos continuar...`, "warning");
@@ -200,10 +199,15 @@ async function runAutomation() {
         currentKeywordSpan.textContent = keyword;
         addLog(`Buscando palabra clave: "${keyword}"...`, "info");
 
-        const response = await chrome.tabs.sendMessage(currentTabId, { 
-          action: "search_and_extract", 
-          keyword
-        });
+        let response;
+        try {
+          response = await safeSendMessage(currentTabId, {
+            action: "search_and_extract",
+            keyword
+          });
+        } catch (err) {
+          addLog(`Error de comunicación al buscar "${keyword}": ${err.message}`, "error");
+        }
 
         if (response && response.success && response.leads) {
           const newLeadsRaw = response.leads;
@@ -246,7 +250,11 @@ async function runAutomation() {
 
       // Cerrar el modal para limpiar
       addLog(`Cerrando modal de ${phaseLabel}...`, "info");
-      await chrome.tabs.sendMessage(currentTabId, { action: "close_modal" });
+      try {
+        await safeSendMessage(currentTabId, { action: "close_modal" });
+      } catch (err) {
+        addLog(`Error al cerrar modal: ${err.message}`, "warning");
+      }
       await wait(1500);
     }
 
@@ -266,6 +274,87 @@ async function runAutomation() {
 }
 
 // Helpers de pestañas Chrome
+
+function waitForTabComplete(tabId, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    let timeoutId;
+
+    // Función para manejar el evento
+    function listener(updatedTabId, changeInfo, tab) {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+        clearTimeout(timeoutId);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve(tab);
+      }
+    }
+
+    // Primero, verificar si ya está completa
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      if (tab.status === 'complete') {
+        resolve(tab);
+      } else {
+        // Si no está completa, escuchar actualizaciones
+        chrome.tabs.onUpdated.addListener(listener);
+
+        // Timeout de seguridad
+        timeoutId = setTimeout(() => {
+          chrome.tabs.onUpdated.removeListener(listener);
+          resolve(tab); // Resolvemos con el tab actual aunque no esté completo, para no bloquear
+        }, timeoutMs);
+      }
+    });
+  });
+}
+
+async function safeSendMessage(tabId, message, maxRetries = 2) {
+  let attempts = 0;
+
+  while (attempts <= maxRetries) {
+    try {
+      // Intentar asegurar que el script está inyectado
+      try {
+        await pingContentScript(tabId);
+      } catch (e) {
+        addLog(`Inyectando content script de forma manual (intento ${attempts + 1})...`, "warning");
+        await injectContentScript(tabId);
+        await wait(1000); // Esperar a que el script se inicialice
+      }
+
+      // Enviar el mensaje
+      const response = await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(tabId, message, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve(res);
+          }
+        });
+      });
+
+      return response;
+    } catch (error) {
+      attempts++;
+      addLog(`Error al enviar mensaje (intento ${attempts}): ${error.message}`, "warning");
+
+      if (attempts > maxRetries) {
+        throw new Error(`Fallo tras ${maxRetries} intentos: ${error.message}`);
+      }
+
+      // Si el error es de conexión, intentar recargar/esperar antes de reintentar
+      if (error.message.includes("Could not establish connection")) {
+        await wait(2000); // Esperar un poco antes de reintentar
+      } else {
+        throw error; // Lanzar otros errores inmediatamente
+      }
+    }
+  }
+}
+
 function createTab(url) {
   return new Promise((resolve) => {
     chrome.tabs.create({ url, active: true }, (tab) => {
